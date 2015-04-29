@@ -32,7 +32,14 @@ class Board
   def in_check?(color)
   end
 
-  def move(start, end_pos)
+  def move(start_pos, end_pos)
+    x, y = start_pos[0], start_pos[1]
+    piece_type = @grid[x][y].type
+    @grid[x][y] = nil
+    piece_class, piece_color = piece_type[0], piece_type[1]
+    x, y = end_pos[0], end_pos[1]
+    @grid[x][y] = piece_class.new(piece_color, end_pos, self)
+
   end
 
   def get_move
