@@ -1,34 +1,33 @@
 require_relative 'chess_pieces.rb'
+require 'colorize.rb'
 
 class Board
 
 
-  attr_accessor :grid
+  attr_accessor :grid, :highlight, :to_move
 
   COLORS = [:white, :black]
   UNICODE_DISPLAY = {
-    [:white, Pawn]   => '♙',
-    [:white, Knight] => '♘',
-    [:white, Bishop] => '♗',
-    [:white, Rook]   => '♖',
-    [:white, Queen]  => '♕',
-    [:white, King]   => '♔',
-
-    [:black, Pawn]   => '♟',
-    [:black, Knight] => '♞',
-    [:black, Bishop] => '♝',
-    [:black, Rook]   => '♜',
-    [:black, Queen]  => '♛',
-    [:black, King]   => '♚'
+    Pawn   => '♟',
+    Knight => '♞',
+    Bishop => '♝',
+    Rook   => '♜',
+    Queen  => '♛',
+    King   => '♚'
+  }
+  BACKGROUND_COLOR = {
+    1 => :light_blue,
+    0 => :light_red,
+    :highlight => :yellow
   }
 
 
-  def initialize(fill = true)
+  def initialize
     @grid = Array.new(8) { Array.new(8) {nil} }
-    if fill
-      fill_board_white
-      fill_board_black
-    end
+    fill_board_white
+    fill_board_black
+    @highlight = [0,0]
+    @to_move = :white
   end
 
   def fill_board_white
@@ -51,53 +50,38 @@ class Board
 
 
   def in_check?(color)
-    color_pieces = Array.new
-    off_color_pieces = Array.new
-    @grid.flatten.compact.each do |piece|
-      if piece.color == color
-        color_pieces << piece.dup
-      else
-        off_color_pieces << piece.dup
-      end
-    end
+    color_pieces = get_all_pieces(color)
     king_piece  = color_pieces.select{ |piece| piece.is_a?(King) }.first
-    off_color_pieces.each do |piece|
+    get_all_pieces(other_color(color)).each do |piece|
       return true if piece.moves.include?(king_piece.position)
     end
       return false
   end
 
   def checkmate?(color)
-    color_pieces = Array.new
-    @grid.flatten.compact.each do |piece|
-      if piece.color == color
-        color_pieces << piece.dup
-      end
-    end
+    color_pieces = get_all_pieces(color)
+    #puts color_pieces.map {|piece|piece.type}
     all_moves = color_pieces.inject([]) do |total_moves, piece|
       total_moves + piece.safe_moves
     end
     all_moves.empty?
   end
 
-
   def move(start_pos, end_pos)
-    x, y = start_pos[0], start_pos[1]
-    piece_to_move = @grid[x][y]
+    piece_to_move = get_piece_at(start_pos)
     move_array = piece_to_move.safe_moves
     if move_array.include?(end_pos)
-      @grid[x][y] = nil
+      set_piece_at(start_pos) {nil}
       piece_color, piece_class = piece_to_move.color, piece_to_move.class
-      x, y = end_pos[0], end_pos[1]
-      @grid[x][y] = piece_class.new(piece_color, end_pos, self)
+      set_piece_at(end_pos) {piece_class.new(piece_color, end_pos, self)}
+      @to_move = other_color(@to_move)
     else
-      raise "illegal move, try again"
+      print "illegal move, try again"
     end
-    self.display
   end
 
   def dup
-    dup_board = Board.new(false)
+    dup_board = Board.new
     (0...8).each do |row|
       (0...8).each do |col|
         dup_board.grid[row][col] = (@grid[row][col] ? @grid[row][col].dup : nil)
@@ -106,28 +90,60 @@ class Board
     dup_board
   end
 
+  def get_piece_at(pos)
+    @grid[pos[0]][pos[1]]
+  end
+
+  def set_piece_at(pos, &prc)
+    @grid[pos[0]][pos[1]] = prc.call
+  end
+
+  def get_all_pieces(color)
+    pieces = Array.new
+    @grid.flatten.compact.each do |piece|
+      if piece.color == color
+        pieces << piece.dup
+      end
+    end
+    pieces
+  end
+
+  def other_color(color)
+    color == :white ? (return :black) : (return :white)
+  end
+
   def display
-    print "\n"*5
+    print "\n"*8
     (0...8).each do |y|
+      print "#{8-y}  "
       (0...8).each do |x|
-        if @grid[x][7-y]
-          piece = @grid[x][7-y]
-          print " #{UNICODE_DISPLAY[piece.type]} "
-          ##{@grid[x][7-y]}
-        else
-          print " — "
-        end
+        render_square([x,y])
       end
       print "\n"
     end
-    print "\n"*5
+    print "\n"
+    print "   "
+    ('A'..'H').each { |letter| print " #{letter} "}
+    print "\n"*3
   end
+
+  def render_square(pos)
+    x, y = pos[0], pos[1]
+    piece = @grid[x][7-y]
+    if piece
+      square = " #{UNICODE_DISPLAY[piece.class]} ".colorize(
+        :color => piece.color
+      )
+    else
+      square = "   "
+    end
+
+    if @highlight[0] == x && @highlight[1] == 7-y
+      print square.colorize(:background => BACKGROUND_COLOR[:highlight])
+    else
+      print square.colorize(:background => BACKGROUND_COLOR[(y + x) % 2])
+    end
+  end
+
+
 end
-
-
-b = Board.new
-# b.move([4,0],[4,3])
-# b.move([7,7],[7,4])
-# king = b.grid[4][4]
-# rook = b.grid[7][4]
-b.display

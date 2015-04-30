@@ -61,7 +61,8 @@ class SlidingPiece < Piece
   def moves(pos = @position)
     move_dirs.inject(Array.new) do |move_array, mod|
       new_pos = [mod[0] + pos[0], mod[1] + pos[1]]
-      move_array += get_all_dir(new_pos, mod)
+      move_array + get_all_dir(new_pos, mod)
+
     end
 
   end
